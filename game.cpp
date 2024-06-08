@@ -2,6 +2,7 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 #include <iostream>
+#include <sstream> 
 #include <vector>
 #include <string>
 #include <cstdlib>
@@ -19,11 +20,28 @@ SDL_Texture* snakeHead = NULL;
 SDL_Texture* snakeBody = NULL;
 SDL_Texture* snakeTail = NULL;
 SDL_Texture* foodTexture = NULL;
-SDL_Texture* pause= NULL;
-SDL_Texture *play= NULL;
+SDL_Texture* pauseIcon= NULL;
+SDL_Texture *playIcon= NULL;
+SDL_Texture *gameOver= NULL;
+// render-play-pause-button
+ SDL_Rect pauseRect={SCREEN_WIDTH-100,20,64,64};
+ SDL_Rect playRect={SCREEN_WIDTH-100,20,64,64};
+
+
+TTF_Font* font =NULL;
+
+SDL_Texture* scoreTexture=NULL;
+SDL_Texture* scoreValueTexture=NULL;
+
+
 
 bool isRunning;
-bool isPause;
+bool isPaused=false;
+bool isDead=false;
+
+
+
+
 int score=0;
 int snakeSegmentSize = 24;  // Size of each snake segment
 Uint32 snakeSpeed = 200; // Movement delay in milliseconds
@@ -64,16 +82,18 @@ SDL_Texture* loadTexture(const std::string &path, SDL_Renderer *renderer) {
 
 // load font form texture
 // Function to render text and return it as an SDL_Texture
-SDL_Texture* renderText(TTF_Font* font, const string& message, SDL_Color color) {
+SDL_Texture* renderText(TTF_Font* font, const string& message, SDL_Color color, int &width, int &height) {
     SDL_Surface* textSurface = TTF_RenderText_Solid(font, message.c_str(), color);
     if (!textSurface) {
         cerr << "TTF_RenderText_Solid Error: " << TTF_GetError() << endl;
         return NULL;
     }
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    width = textSurface->w;  // Get the width of the rendered text
+    height = textSurface->h; // Get the height of the rendered text
     SDL_FreeSurface(textSurface);
     return texture;
-} 
+}
 
 
 
@@ -131,7 +151,13 @@ bool initializeWindow() {
         isRunning = false;
         return false;
     }
-
+    font= TTF_OpenFont("resource/pg.ttf", 36);
+    if (!font) {
+        cerr << "Failed to load font! SDL_ttf Error: " << TTF_GetError() << endl;
+        isRunning =false;
+        return false;
+        
+    }
     // Load background texture
     backgroundTexture = loadTexture("resource/g1.png", renderer);
     if (!backgroundTexture) {
@@ -172,6 +198,29 @@ bool initializeWindow() {
         return false;
     }
 
+    // Load pause icon
+    pauseIcon = loadTexture("resource/pause-icon.png", renderer);
+    if (!pauseIcon) {
+        cout << "Error: Failed to load pause texture" << endl;
+        isRunning = false;
+        return false;
+    }
+    // Load play icon
+    playIcon = loadTexture("resource/play-icon.png", renderer);
+    if (!playIcon) {
+        cout << "Error: Failed to load play texture" << endl;
+        isRunning = false;
+        return false;
+    }
+    // Load play icon
+    gameOver= loadTexture("resource/game-over.png", renderer);
+    if (!gameOver) {
+        cout << "Error: Failed to load play texture" << endl;
+        isRunning = false;
+        return false;
+    }
+
+
     // Initialize snake
     snake.push_back({SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, snakeHead, 0.0});
     snake.push_back({SCREEN_WIDTH / 2 - snakeSegmentSize, SCREEN_HEIGHT / 2, snakeBody, 0.0});
@@ -190,19 +239,35 @@ void handleEvents() {
         if (event.type == SDL_QUIT) {
             isRunning = false;
         } else if (event.type == SDL_KEYDOWN) {
+            //kbd-press
             switch (event.key.keysym.sym) {
                 case SDLK_UP:
-                    if (dir != DOWN) dir = UP;
+                    if (!isPaused && dir != DOWN) dir = UP;
                     break;
                 case SDLK_DOWN:
-                    if (dir != UP) dir = DOWN;
+                    if (!isPaused && dir != UP) dir = DOWN;
                     break;
                 case SDLK_LEFT:
-                    if (dir != RIGHT) dir = LEFT;
+                    if (!isPaused && dir != RIGHT) dir = LEFT;
                     break;
                 case SDLK_RIGHT:
-                    if (dir != LEFT) dir = RIGHT;
+                    if (!isPaused && dir != LEFT) dir = RIGHT;
                     break;
+            }
+        }else if (event.type == SDL_MOUSEBUTTONDOWN) {
+            int x, y;
+            SDL_GetMouseState(&x, &y);
+            
+            if(!isDead)
+            {
+                if (!isPaused && x >= pauseRect.x && x <= pauseRect.x +pauseRect.w &&
+                y >= pauseRect.y && y <= pauseRect.y + pauseRect.h) {
+                isPaused = true;
+                 }
+                 else if (isPaused && x >= playRect.x && x <= playRect.x +playRect.w &&
+                y >= playRect.y && y <= playRect.y + playRect.h) {
+                isPaused = false;
+                }
             }
         }
     }
@@ -259,6 +324,7 @@ void update() {
         // Add new segment at the position of the last segment
         Segment newSegment = {snake.back().x, snake.back().y, snakeBody, 0.0};
         snake.insert(snake.end() - 1, newSegment);
+        score+=10;
 
         // Place new food
         placeFood();
@@ -268,7 +334,9 @@ void update() {
     for (size_t i = 1; i < snake.size(); ++i) {
         SDL_Rect segmentRect = {snake[i].x, snake[i].y, snakeSegmentSize, snakeSegmentSize};
         if (checkCollision(headRect, segmentRect)) {
-            isRunning = false;  // Game over
+            isPaused=true;
+            isDead=true;
+                            // Game over
         }
     }
 }
@@ -290,6 +358,40 @@ void render() {
         SDL_Rect rect = {snake[i].x, snake[i].y, snakeSegmentSize, snakeSegmentSize};
         SDL_RenderCopyEx(renderer, snake[i].texture, NULL, &rect, snake[i].angle, NULL, SDL_FLIP_NONE);
     }
+    // render score board
+    ostringstream scoreNumber;
+    scoreNumber << score;
+    string scoreValue=  scoreNumber.str();
+    //render
+    SDL_Color textColor = {0, 0, 0};
+    int scoreTextW,scoreTextH,scoreValueTextW,scoreValueTextH;
+    scoreTexture= renderText(font, "Score:", textColor,scoreTextW,scoreTextH);
+    scoreValueTexture= renderText(font,scoreValue, textColor,scoreValueTextW,scoreValueTextH);
+
+    SDL_Rect scoreRect = {20, 20, scoreTextW,scoreTextH};
+    SDL_Rect scoreValueRect = {20+scoreTextW+20,20,scoreValueTextW,scoreValueTextH};
+    SDL_RenderCopy(renderer, scoreTexture, NULL, &scoreRect);
+    SDL_RenderCopy(renderer, scoreValueTexture, NULL, &scoreValueRect);
+
+    //play-pause-icon
+   if(!isDead)
+   {
+        if(isPaused){
+        SDL_RenderCopy(renderer,playIcon, NULL, &playRect);
+        }else{
+        SDL_RenderCopy(renderer,pauseIcon, NULL, &pauseRect);
+        }
+   }
+
+    // game over screen
+    if(isDead)
+    {
+        SDL_RenderCopy(renderer, gameOver, NULL, NULL);
+    }
+
+
+
+
 
     // Present the renderer
     SDL_RenderPresent(renderer);
@@ -301,6 +403,11 @@ void cleanUp() {
     SDL_DestroyTexture(snakeBody);
     SDL_DestroyTexture(snakeTail);
     SDL_DestroyTexture(foodTexture);
+    SDL_DestroyTexture(scoreTexture);
+    SDL_DestroyTexture(scoreValueTexture);
+    SDL_DestroyTexture(playIcon);
+    SDL_DestroyTexture(pauseIcon);
+    SDL_DestroyTexture(gameOver);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
@@ -318,7 +425,8 @@ int main(int argc, char** argv) {
 
     while (isRunning) {
         handleEvents();
-        update();
+        if(!isPaused)update();
+        
         render();
 
         // Cap the frame rate to about 60 FPS
