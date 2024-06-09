@@ -30,26 +30,35 @@ SDL_Texture *menuOptionPlay = NULL;
 SDL_Texture *menuOptionHighestScore = NULL;
 SDL_Texture *menuOptionHelp = NULL;
 SDL_Texture *menuOptionExit = NULL;
+SDL_Texture *restartIcon = NULL;
+
+
+
+
 // render-play-pause-button
 SDL_Rect pauseRect = {SCREEN_WIDTH - 100, 20, 64, 64};
 SDL_Rect playRect = {SCREEN_WIDTH - 100, 20, 64, 64};
 // menu button rect
-SDL_Rect menuPlayRect = {SCREEN_WIDTH / 2-70, 150, 140, 60};
-SDL_Rect menuHighScoreRect = {SCREEN_WIDTH / 2-70, 218, 140, 60};
-SDL_Rect menuHelpRect = {SCREEN_WIDTH / 2-70, 286, 140, 60};
-SDL_Rect menuExitRect = {SCREEN_WIDTH / 2-70, 351, 140, 60};
+SDL_Rect menuPlayRect = {SCREEN_WIDTH / 2 - 70, 150, 140, 60};
+SDL_Rect menuHighScoreRect = {SCREEN_WIDTH / 2 - 70, 218, 140, 60};
+SDL_Rect menuHelpRect = {SCREEN_WIDTH / 2 - 70, 286, 140, 60};
+SDL_Rect menuExitRect = {SCREEN_WIDTH / 2 - 70, 351, 140, 60};
 
 TTF_Font *font = NULL;
 
 SDL_Texture *scoreTexture = NULL;
 SDL_Texture *scoreValueTexture = NULL;
 
-//bgm and sound effect 
-Mix_Chunk* biteSound = NULL;
-Mix_Music* gameBgm = NULL;
+// bgm and sound effect
+Mix_Chunk *biteSound = NULL;
+Mix_Chunk *mouseSound = NULL;
+Mix_Chunk *clickSound = NULL;
+Mix_Music *gameBgm = NULL;
 
-
-
+Mix_Music *themeMusic = NULL;
+Mix_Music *menuMusic = NULL;
+Mix_Music *gameplayMusic = NULL;
+Mix_Music *gameOverMusic = NULL;
 
 bool isRunning;
 bool isPaused = false;
@@ -265,6 +274,14 @@ bool initializeWindow()
         isRunning = false;
         return false;
     }
+    // Load play icon
+    restartIcon = loadTexture("resource/game-over.png", renderer);
+    if (!gameOver)
+    {
+        cout << "Error: Failed to load play texture" << endl;
+        isRunning = false;
+        return false;
+    }
 
     // theme background
 
@@ -332,28 +349,34 @@ bool initializeWindow()
     food.texture = foodTexture;
     placeFood();
 
-
-    
-     // Initialize SDL_mixer
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) == -1) {
+    // Initialize SDL_mixer
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) == -1)
+    {
         cout << "Error: Failed to initialize SDL_mixer\nMix Error: " << Mix_GetError() << endl;
         isRunning = false;
         return false;
     }
 
-    biteSound= Mix_LoadWAV("resource/bite.wav");
-    if (biteSound == NULL) {
+    biteSound = Mix_LoadWAV("resource/bite.wav");
+    mouseSound = Mix_LoadWAV("resource/mouseclick.wav");
+    clickSound = Mix_LoadWAV("resource/click.wav");
+    if (!biteSound ||  !mouseSound ||  !clickSound)
+    {
         cout << "Failed to load scratch sound effect! SDL_mixer Error: " << Mix_GetError() << endl;
         return false;
     }
-    
-    gameBgm= Mix_LoadMUS("resource/gamebgm.mp3");
-    if (gameBgm == NULL) {
-        std::cout << "Failed to load music! SDL_mixer Error: " << Mix_GetError() <<endl;
+
+    gameBgm = Mix_LoadMUS("resource/gameover.mp3");
+
+    themeMusic = Mix_LoadMUS("resource/theme.mp3");
+    menuMusic = Mix_LoadMUS("resource/menu.mp3");
+    gameplayMusic = Mix_LoadMUS("resource/gameplay.mp3");
+    gameOverMusic = Mix_LoadMUS("resource/gameover.mp3");
+    if (!gameBgm || !themeMusic || !menuMusic || !gameplayMusic || !gameOverMusic)
+    {
+        std::cout << "Failed to load music! SDL_mixer Error: " << Mix_GetError() << endl;
         return false;
     }
-
-
 
     return true;
 }
@@ -373,7 +396,8 @@ void themeHandleEvents()
         else if (event.type == SDL_KEYDOWN)
         {
             if (event.key.keysym.sym == SDLK_RETURN)
-            {
+            {   
+                Mix_PlayChannel(-1,mouseSound, 0);
                 currentSection = MENU;
             }
         }
@@ -405,13 +429,15 @@ void menuHandleEvents()
             if (x >= menuPlayRect.x && x <= menuPlayRect.x + menuPlayRect.w &&
                 y >= menuPlayRect.y && y <= menuPlayRect.y + menuPlayRect.h)
             {
+                Mix_PlayChannel(-1,mouseSound, 0);
                 currentSection = GAMESCREEN;
             }
             else if (x >= menuExitRect.x && x <= menuExitRect.x + menuExitRect.w &&
                      y >= menuExitRect.y && y <= menuExitRect.y + menuExitRect.h)
-            {
+            {   
+                Mix_PlayChannel(-1,mouseSound, 0);
                 isRunning = false;
-            } 
+            }
         }
     }
 }
@@ -531,7 +557,7 @@ void update()
         Segment newSegment = {snake.back().x, snake.back().y, snakeBody, 0.0};
         snake.insert(snake.end() - 1, newSegment);
         score += 10;
-         Mix_PlayChannel(-1,biteSound, 0);
+        Mix_PlayChannel(-1, biteSound, 0);
 
         // Place new food
         placeFood();
@@ -658,11 +684,25 @@ void cleanUp()
     SDL_DestroyTexture(menuOptionHighestScore);
     SDL_DestroyTexture(menuOptionHelp);
     SDL_DestroyTexture(menuOptionExit);
-    //clear music
+    // clear music
     Mix_FreeChunk(biteSound);
-    biteSound= NULL;
+    biteSound = NULL;
+    Mix_FreeChunk(mouseSound);
+    mouseSound= NULL;
+    Mix_FreeChunk(clickSound);
+    clickSound = NULL;
     Mix_FreeMusic(gameBgm);
-    gameBgm= NULL;
+    gameBgm = NULL;
+    Mix_FreeMusic(gameplayMusic);
+    gameplayMusic = NULL;
+    Mix_FreeMusic(gameOverMusic);
+    gameOverMusic = NULL;
+    Mix_FreeMusic(themeMusic);
+    themeMusic = NULL;
+    Mix_FreeMusic(menuMusic);
+    Mix_FreeMusic(gameBgm);
+    gameBgm = NULL;
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     TTF_Quit();
@@ -681,32 +721,63 @@ int main(int argc, char **argv)
     }
 
     isRunning = true;
+    auto currenMusic = themeMusic;
 
-    while (isRunning)
+// Start playing the initial music
+Mix_PlayMusic(currenMusic, -1);
+
+while (isRunning)
+{
+    switch (currentSection)
     {
-        switch (currentSection)
+    case THEME:
+        if (currenMusic != themeMusic)
         {
-        case THEME:
-            themeHandleEvents();
-            themeRender();
-            break;
-        case MENU:
-            menuHandleEvents();
-            menuRender();
-            break;
-
-        case GAMESCREEN:
-            Mix_PlayMusic(gameBgm, -1);
-            handleEvents();
-            if (!isPaused)
-                update();
-            render();
-            break;
+            currenMusic = themeMusic;
+            Mix_PlayMusic(currenMusic, -1);
         }
-        // Cap the frame rate to about 60 FPS
-        SDL_Delay(16);
-    }
+        themeHandleEvents();
+        themeRender();
+        break;
 
+    case MENU:
+        if (currenMusic != menuMusic)
+        {
+            currenMusic = menuMusic;
+            Mix_PlayMusic(currenMusic, -1);
+        }
+        menuHandleEvents();
+        menuRender();
+        break;
+
+    case GAMESCREEN:
+        
+        handleEvents();
+        if (!isPaused)
+            update();
+        render();
+       if(!isDead){
+         if (currenMusic != gameplayMusic)
+        {
+            currenMusic = gameplayMusic;
+            Mix_PlayMusic(currenMusic, -1);
+        }
+       }else{
+        if (currenMusic != gameOverMusic)
+        {
+            currenMusic = gameOverMusic;
+            Mix_PlayMusic(gameOverMusic, -1);
+        }
+       }
+        break;
+
+    default:
+        break;
+    }
+    
+    // Cap the frame rate to about 60 FPS
+    SDL_Delay(16);
+}
     cleanUp();
 
     return 0;
