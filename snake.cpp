@@ -31,7 +31,7 @@ SDL_Texture *menuOptionHighestScore = NULL;
 SDL_Texture *menuOptionHelp = NULL;
 SDL_Texture *menuOptionExit = NULL;
 SDL_Texture *restartIcon = NULL;
-
+SDL_Texture *bonusFoodTexture = NULL;
 
 
 
@@ -53,7 +53,6 @@ SDL_Texture *scoreValueTexture = NULL;
 Mix_Chunk *biteSound = NULL;
 Mix_Chunk *mouseSound = NULL;
 Mix_Chunk *clickSound = NULL;
-Mix_Music *gameBgm = NULL;
 
 Mix_Music *themeMusic = NULL;
 Mix_Music *menuMusic = NULL;
@@ -92,14 +91,26 @@ struct Segment
     double angle;
 };
 
+struct bonusFoods
+{
+    int x, y;
+    SDL_Texture *texture;
+    Uint32 spawnTime;
+    bool isBonus;
+};
+bonusFoods bonusFood;
+Uint32 bonusFoodAppearTime = 0; 
+bool bonusFoodVisible = false;
+
+vector<Segment> snake;
 struct Food
 {
     int x, y;
     SDL_Texture *texture;
 };
 
-vector<Segment> snake;
 Food food;
+
 
 // Function to load an image as a texture
 SDL_Texture *loadTexture(const std::string &path, SDL_Renderer *renderer)
@@ -149,16 +160,54 @@ void placeFood()
         food.y = (rand() % (SCREEN_HEIGHT / snakeSegmentSize)) * snakeSegmentSize;
 
         // Ensure the food does not spawn on the snake
-        for (const Segment &segment : snake)
+        // Ensure the bonus food does not spawn on the snake or within 100px of the boundary
+        if (food.x < 50|| food.x >= SCREEN_WIDTH - 50 || food.y < 50 || food.y >= SCREEN_HEIGHT - 50)
         {
-            if (food.x == segment.x && food.y == segment.y)
+            validPosition = false;
+        }
+        else
+        {
+            for (const Segment &segment : snake)
             {
-                validPosition = false;
-                break;
+                if (food.x == segment.x && food.y == segment.y)
+                {
+                    validPosition = false;
+                    break;
+                }
             }
         }
     } while (!validPosition);
 }
+
+
+void placeBonusFood()
+{
+    bool validPosition;
+    do
+    {
+        validPosition = true;
+        bonusFood.x = (rand() % (SCREEN_WIDTH / snakeSegmentSize)) * snakeSegmentSize;
+        bonusFood.y = (rand() % (SCREEN_HEIGHT / snakeSegmentSize)) * snakeSegmentSize;
+
+        // Ensure the bonus food does not spawn on the snake or within 100px of the boundary
+        if (bonusFood.x < 50 || bonusFood.x >= SCREEN_WIDTH - 50|| bonusFood.y < 50 || bonusFood.y >= SCREEN_HEIGHT - 50)
+        {
+            validPosition = false;
+        }
+        else
+        {
+            for (const Segment &segment : snake)
+            {
+                if (bonusFood.x == segment.x && bonusFood.y == segment.y)
+                {
+                    validPosition = false;
+                    break;
+                }
+            }
+        }
+    } while (!validPosition);
+}
+
 
 bool initializeWindow()
 {
@@ -339,7 +388,14 @@ bool initializeWindow()
         isRunning = false;
         return false;
     }
-
+    bonusFoodTexture = loadTexture("resource/enchinted-apple.png", renderer);
+    if (!bonusFoodTexture)
+    {
+        cout << "Error: Failed to exit texture" << endl;
+        isRunning = false;
+        return false;
+    }
+    bonusFood.texture = bonusFoodTexture;
     // Initialize snake
     snake.push_back({SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, snakeHead, 0.0});
     snake.push_back({SCREEN_WIDTH / 2 - snakeSegmentSize, SCREEN_HEIGHT / 2, snakeBody, 0.0});
@@ -366,13 +422,13 @@ bool initializeWindow()
         return false;
     }
 
-    gameBgm = Mix_LoadMUS("resource/gameover.mp3");
+   
 
     themeMusic = Mix_LoadMUS("resource/theme.mp3");
     menuMusic = Mix_LoadMUS("resource/menu.mp3");
     gameplayMusic = Mix_LoadMUS("resource/gameplay.mp3");
     gameOverMusic = Mix_LoadMUS("resource/gameover.mp3");
-    if (!gameBgm || !themeMusic || !menuMusic || !gameplayMusic || !gameOverMusic)
+    if (!themeMusic || !menuMusic || !gameplayMusic || !gameOverMusic)
     {
         std::cout << "Failed to load music! SDL_mixer Error: " << Mix_GetError() << endl;
         return false;
@@ -442,7 +498,8 @@ void menuHandleEvents()
     }
 }
 void handleEvents()
-{
+{   
+
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
@@ -562,6 +619,33 @@ void update()
         // Place new food
         placeFood();
     }
+    //cheak bonus food
+    if (bonusFoodVisible)
+    {
+        SDL_Rect bonusFoodRect = {bonusFood.x, bonusFood.y, snakeSegmentSize, snakeSegmentSize};
+        if (checkCollision(headRect, bonusFoodRect))
+        {
+            // Add new segment at the position of the last segment
+            Segment newSegment = {snake.back().x, snake.back().y, snakeBody, 0.0};
+            snake.insert(snake.end() - 1, newSegment);
+            score += 50; // Bonus food gives more points
+            Mix_PlayChannel(-1, biteSound, 0);
+
+            // Hide bonus food
+            bonusFoodVisible = false;
+        }
+    }
+
+    if (!bonusFoodVisible &&(rand() % 100 < 5)) // 5% chance to spawn bonus food each update&& (rand() % 100 < 5)
+    {
+        placeBonusFood();
+        bonusFoodVisible = true;
+        bonusFoodAppearTime = currentTime;
+    }
+    if (bonusFoodVisible && currentTime - bonusFoodAppearTime > 5000) // Bonus food stays for 5 seconds
+    {
+        bonusFoodVisible = false;
+    }
 
     // Check for self-collision
     for (size_t i = 1; i < snake.size(); ++i)
@@ -573,6 +657,12 @@ void update()
             isDead = true;
             // Game over
         }
+    }
+    
+    if(snake[0].x < 36|| snake[0].x >= SCREEN_WIDTH - 36 || snake[0].y < 36 || snake[0].y >= SCREEN_HEIGHT - 50)
+    {
+        isPaused = true;
+        isDead = true;
     }
 }
 
@@ -621,6 +711,13 @@ void render()
     // Render food
     SDL_Rect foodRect = {food.x, food.y, snakeSegmentSize, snakeSegmentSize};
     SDL_RenderCopy(renderer, food.texture, NULL, &foodRect);
+
+    // Render bonus food if visible
+    if (bonusFoodVisible)
+    {
+        SDL_Rect bonusFoodRect = {bonusFood.x, bonusFood.y, snakeSegmentSize, snakeSegmentSize};
+        SDL_RenderCopy(renderer, bonusFood.texture, NULL, &bonusFoodRect);
+    }
 
     // Render snake
     for (size_t i = 0; i < snake.size(); ++i)
@@ -684,6 +781,7 @@ void cleanUp()
     SDL_DestroyTexture(menuOptionHighestScore);
     SDL_DestroyTexture(menuOptionHelp);
     SDL_DestroyTexture(menuOptionExit);
+    SDL_DestroyTexture(bonusFoodTexture);
     // clear music
     Mix_FreeChunk(biteSound);
     biteSound = NULL;
@@ -691,8 +789,6 @@ void cleanUp()
     mouseSound= NULL;
     Mix_FreeChunk(clickSound);
     clickSound = NULL;
-    Mix_FreeMusic(gameBgm);
-    gameBgm = NULL;
     Mix_FreeMusic(gameplayMusic);
     gameplayMusic = NULL;
     Mix_FreeMusic(gameOverMusic);
@@ -700,8 +796,7 @@ void cleanUp()
     Mix_FreeMusic(themeMusic);
     themeMusic = NULL;
     Mix_FreeMusic(menuMusic);
-    Mix_FreeMusic(gameBgm);
-    gameBgm = NULL;
+   
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
