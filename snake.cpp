@@ -32,7 +32,7 @@ SDL_Texture *menuOptionHelp = NULL;
 SDL_Texture *menuOptionExit = NULL;
 SDL_Texture *restartIcon = NULL;
 SDL_Texture *bonusFoodTexture = NULL;
-
+SDL_Texture *bonusFoodCover= NULL;
 
 
 // render-play-pause-button
@@ -388,6 +388,13 @@ bool initializeWindow()
         isRunning = false;
         return false;
     }
+    bonusFoodCover = loadTexture("resource/glower.png", renderer);
+    if (!bonusFoodCover)
+    {
+        cout << "Error: Failed to bonusFoodCover texture" << endl;
+        isRunning = false;
+        return false;
+    }
     bonusFoodTexture = loadTexture("resource/enchinted-apple.png", renderer);
     if (!bonusFoodTexture)
     {
@@ -716,7 +723,9 @@ void render()
     if (bonusFoodVisible)
     {
         SDL_Rect bonusFoodRect = {bonusFood.x, bonusFood.y, snakeSegmentSize, snakeSegmentSize};
+        SDL_Rect bonusFoodRectCover = {bonusFood.x-10, bonusFood.y-10, snakeSegmentSize+20, snakeSegmentSize+20};
         SDL_RenderCopy(renderer, bonusFood.texture, NULL, &bonusFoodRect);
+        SDL_RenderCopy(renderer, bonusFoodCover, NULL, &bonusFoodRectCover);
     }
 
     // Render snake
@@ -781,6 +790,7 @@ void cleanUp()
     SDL_DestroyTexture(menuOptionHighestScore);
     SDL_DestroyTexture(menuOptionHelp);
     SDL_DestroyTexture(menuOptionExit);
+    SDL_DestroyTexture(bonusFoodCover);
     SDL_DestroyTexture(bonusFoodTexture);
     // clear music
     Mix_FreeChunk(biteSound);
