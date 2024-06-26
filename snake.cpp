@@ -4,7 +4,7 @@
 #include <SDl2/SDL_mixer.h>
 #include <iostream>
 #include <sstream>
-#include <vector>
+#include <bits/stdc++.h>
 #include <string>
 #include <cstdlib>
 #include <ctime>
@@ -32,9 +32,25 @@ SDL_Texture *menuOptionHelp = NULL;
 SDL_Texture *menuOptionExit = NULL;
 SDL_Texture *restartIcon = NULL;
 SDL_Texture *bonusFoodTexture = NULL;
-SDL_Texture *bonusFoodCover= NULL;
+SDL_Texture *bonusFoodCover = NULL;
+SDL_Texture *backToMenu = NULL;
 
+SDL_Texture *backButtonTexture = NULL;
+SDL_Rect backBtnRect = {SCREEN_WIDTH / 2 - 35, SCREEN_HEIGHT / 2 + 150, 60, 45};
+SDL_Rect helpBackBtnRect = {SCREEN_WIDTH / 2 - 35, SCREEN_HEIGHT - 55, 60, 45};
+SDL_Rect deadBackBtnRect = {SCREEN_WIDTH / 2 - 25, SCREEN_HEIGHT / 2 + 95, 60, 45};
+// high score page
+SDL_Texture *highScoreStar = NULL;
+SDL_Texture *highScoreLabel = NULL;
+SDL_Texture *highScoreNumberValue = NULL;
 
+SDL_Texture *scorePopup = NULL;
+SDL_Texture *highScorePopup = NULL;
+int popUpX = SCREEN_WIDTH / 2;
+int bonusPopUpY = SCREEN_HEIGHT+100;
+int popUpY = SCREEN_HEIGHT + 100;
+// heap page
+SDL_Texture *helpBoardTexture = NULL;
 // render-play-pause-button
 SDL_Rect pauseRect = {SCREEN_WIDTH - 100, 20, 64, 64};
 SDL_Rect playRect = {SCREEN_WIDTH - 100, 20, 64, 64};
@@ -53,7 +69,10 @@ SDL_Texture *scoreValueTexture = NULL;
 Mix_Chunk *biteSound = NULL;
 Mix_Chunk *mouseSound = NULL;
 Mix_Chunk *clickSound = NULL;
-
+Mix_Chunk *getPointFx = NULL;
+Mix_Chunk *getMoneyFX = NULL;
+Mix_Chunk *magicFX = NULL;
+Mix_Chunk *gameOverFx = NULL;
 Mix_Music *themeMusic = NULL;
 Mix_Music *menuMusic = NULL;
 Mix_Music *gameplayMusic = NULL;
@@ -68,6 +87,20 @@ int snakeSegmentSize = 24; // Size of each snake segment
 Uint32 snakeSpeed = 200;   // Movement delay in milliseconds
 Uint32 lastMoveTime = 0;   // Last time the snake moved
 
+double foodCoverRotationAngle = 0.0;
+const double foodCoverRotationSpeed = 90.0; // degrees per second
+Uint32 lastTime = SDL_GetTicks();
+
+int highScore = 0;
+
+// Initialization
+bool showPopup = false;
+bool showBonusPopup = false;
+Uint32 popupStartTime = 0;
+const int popupDuration = 500;               // Show popup for 800 ms (0.8 seconds)
+const int popupInitialY = SCREEN_HEIGHT / 2; // Initial Y position of the popup
+const int popupSpeed = 5;                    // Speed of the popup movement in pixels per second
+
 enum Direction
 {
     UP,
@@ -81,7 +114,10 @@ enum Section
 {
     THEME,
     MENU,
-    GAMESCREEN
+    GAMESCREEN,
+    HELP,
+    CHOSELEVEL,
+    HIGHSCORE
 };
 Section currentSection = THEME;
 struct Segment
@@ -99,7 +135,7 @@ struct bonusFoods
     bool isBonus;
 };
 bonusFoods bonusFood;
-Uint32 bonusFoodAppearTime = 0; 
+Uint32 bonusFoodAppearTime = 0;
 bool bonusFoodVisible = false;
 
 vector<Segment> snake;
@@ -110,7 +146,6 @@ struct Food
 };
 
 Food food;
-
 
 // Function to load an image as a texture
 SDL_Texture *loadTexture(const std::string &path, SDL_Renderer *renderer)
@@ -154,14 +189,14 @@ void placeFood()
 {
     bool validPosition;
     do
-    {
+    {   
         validPosition = true;
         food.x = (rand() % (SCREEN_WIDTH / snakeSegmentSize)) * snakeSegmentSize;
         food.y = (rand() % (SCREEN_HEIGHT / snakeSegmentSize)) * snakeSegmentSize;
 
         // Ensure the food does not spawn on the snake
         // Ensure the bonus food does not spawn on the snake or within 100px of the boundary
-        if (food.x < 50|| food.x >= SCREEN_WIDTH - 50 || food.y < 50 || food.y >= SCREEN_HEIGHT - 50)
+        if (food.x < 50 || food.x >= SCREEN_WIDTH - 50 || food.y < 50 || food.y >= SCREEN_HEIGHT - 50)
         {
             validPosition = false;
         }
@@ -179,7 +214,6 @@ void placeFood()
     } while (!validPosition);
 }
 
-
 void placeBonusFood()
 {
     bool validPosition;
@@ -190,7 +224,7 @@ void placeBonusFood()
         bonusFood.y = (rand() % (SCREEN_HEIGHT / snakeSegmentSize)) * snakeSegmentSize;
 
         // Ensure the bonus food does not spawn on the snake or within 100px of the boundary
-        if (bonusFood.x < 50 || bonusFood.x >= SCREEN_WIDTH - 50|| bonusFood.y < 50 || bonusFood.y >= SCREEN_HEIGHT - 50)
+        if (bonusFood.x < 50 || bonusFood.x >= SCREEN_WIDTH - 50 || bonusFood.y < 50 || bonusFood.y >= SCREEN_HEIGHT - 50)
         {
             validPosition = false;
         }
@@ -207,7 +241,6 @@ void placeBonusFood()
         }
     } while (!validPosition);
 }
-
 
 bool initializeWindow()
 {
@@ -402,6 +435,29 @@ bool initializeWindow()
         isRunning = false;
         return false;
     }
+
+    // high score page
+    highScoreStar = loadTexture("resource/star.png", renderer);
+    if (!highScoreStar)
+    {
+        cout << "Error: Failed to star texture" << endl;
+        isRunning = false;
+        return false;
+    }
+    helpBoardTexture = loadTexture("resource/guideline.png", renderer);
+    if (!helpBoardTexture)
+    {
+        cout << "Error: Failed to guideline texture" << endl;
+        isRunning = false;
+        return false;
+    }
+    backToMenu = loadTexture("resource/back.png", renderer);
+    if (!backToMenu)
+    {
+        cout << "Error: Failed to back to menu texture" << endl;
+        isRunning = false;
+        return false;
+    }
     bonusFood.texture = bonusFoodTexture;
     // Initialize snake
     snake.push_back({SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, snakeHead, 0.0});
@@ -423,13 +479,15 @@ bool initializeWindow()
     biteSound = Mix_LoadWAV("resource/bite.wav");
     mouseSound = Mix_LoadWAV("resource/mouseclick.wav");
     clickSound = Mix_LoadWAV("resource/click.wav");
-    if (!biteSound ||  !mouseSound ||  !clickSound)
+    getPointFx = Mix_LoadWAV("resource/point.wav");
+    getMoneyFX = Mix_LoadWAV("resource/cash.wav");
+    gameOverFx = Mix_LoadWAV("resource/gameoversound.wav");
+    magicFX = Mix_LoadWAV("resource/magic.wav");
+    if (!biteSound || !mouseSound || !clickSound || !getPointFx || !getMoneyFX || !gameOverFx || !magicFX)
     {
         cout << "Failed to load scratch sound effect! SDL_mixer Error: " << Mix_GetError() << endl;
         return false;
     }
-
-   
 
     themeMusic = Mix_LoadMUS("resource/theme.mp3");
     menuMusic = Mix_LoadMUS("resource/menu.mp3");
@@ -442,6 +500,37 @@ bool initializeWindow()
     }
 
     return true;
+}
+
+// store high score
+//  Function declarations
+void saveHighScore(const char *filename, int highScore)
+{
+    FILE *file = fopen(filename, "w");
+    if (file != nullptr)
+    {
+        fprintf(file, "%d", highScore);
+        fclose(file);
+    }
+    else
+    {
+        std::cout << "Unable to open file to write high score" << std::endl;
+    }
+}
+void loadHighScore(const char *filename, int &highScore)
+{
+    FILE *file = fopen(filename, "r");
+    if (file != nullptr)
+    {
+        fscanf(file, "%d", &highScore);
+        fclose(file);
+    }
+    else
+    {
+        std::cout << "File does not exist. Creating a new high score file." << std::endl;
+        highScore = 0;
+        saveHighScore(filename, highScore); // Create the file with initial score 0
+    }
 }
 
 //---------------------------------------Event Handle----------------------------------------------
@@ -459,14 +548,61 @@ void themeHandleEvents()
         else if (event.type == SDL_KEYDOWN)
         {
             if (event.key.keysym.sym == SDLK_RETURN)
-            {   
-                Mix_PlayChannel(-1,mouseSound, 0);
+            {
+                Mix_PlayChannel(-1, mouseSound, 0);
                 currentSection = MENU;
             }
         }
     }
 }
+void scorePageHandle()
+{
+    SDL_Event event;
 
+    while (SDL_PollEvent(&event))
+    {
+        if (event.type == SDL_QUIT)
+        {
+            isRunning = false;
+        }
+        else if (event.type == SDL_MOUSEBUTTONDOWN)
+        {
+            int x, y;
+            SDL_GetMouseState(&x, &y);
+
+            if (x >= backBtnRect.x && x <= backBtnRect.x + backBtnRect.w &&
+                y >= backBtnRect.y && y <= backBtnRect.y + backBtnRect.h)
+            {
+                Mix_PlayChannel(-1, mouseSound, 0);
+                currentSection = MENU;
+            }
+        }
+    }
+}
+void helpPageHandle()
+{
+    SDL_Event event;
+
+    while (SDL_PollEvent(&event))
+    {
+        if (event.type == SDL_QUIT)
+        {
+            isRunning = false;
+        }
+        else if (event.type == SDL_MOUSEBUTTONDOWN)
+        {
+            int x, y;
+            SDL_GetMouseState(&x, &y);
+
+            if (x >= helpBackBtnRect.x && x <= helpBackBtnRect.x + helpBackBtnRect.w &&
+                y >= helpBackBtnRect.y && y <= helpBackBtnRect.y + helpBackBtnRect.h)
+            {
+                Mix_PlayChannel(-1, mouseSound, 0);
+                currentSection = MENU;
+            }
+        }
+    }
+}
 void menuHandleEvents()
 {
     SDL_Event event;
@@ -492,20 +628,32 @@ void menuHandleEvents()
             if (x >= menuPlayRect.x && x <= menuPlayRect.x + menuPlayRect.w &&
                 y >= menuPlayRect.y && y <= menuPlayRect.y + menuPlayRect.h)
             {
-                Mix_PlayChannel(-1,mouseSound, 0);
+                Mix_PlayChannel(-1, mouseSound, 0);
                 currentSection = GAMESCREEN;
             }
             else if (x >= menuExitRect.x && x <= menuExitRect.x + menuExitRect.w &&
                      y >= menuExitRect.y && y <= menuExitRect.y + menuExitRect.h)
-            {   
-                Mix_PlayChannel(-1,mouseSound, 0);
+            {
+                Mix_PlayChannel(-1, mouseSound, 0);
                 isRunning = false;
+            }
+            else if (x >= menuHelpRect.x && x <= menuHelpRect.x + menuHelpRect.w &&
+                     y >= menuHelpRect.y && y <= menuHelpRect.y + menuHelpRect.h)
+            {
+                Mix_PlayChannel(-1, mouseSound, 0);
+                currentSection = HELP;
+            }
+            else if (x >= menuHighScoreRect.x && x <= menuHighScoreRect.x + menuHighScoreRect.w &&
+                     y >= menuHighScoreRect.y && y <= menuHighScoreRect.y + menuHighScoreRect.h)
+            {
+                Mix_PlayChannel(-1, mouseSound, 0);
+                currentSection = HIGHSCORE;
             }
         }
     }
 }
 void handleEvents()
-{   
+{
 
     SDL_Event event;
     while (SDL_PollEvent(&event))
@@ -535,6 +683,16 @@ void handleEvents()
                 if (!isPaused && dir != LEFT)
                     dir = RIGHT;
                 break;
+            case SDLK_SPACE:
+                if (!isPaused)
+                {
+                    isPaused = true;
+                }
+                else
+                {
+                    isPaused = false;
+                }
+                break;
             }
         }
         else if (event.type == SDL_MOUSEBUTTONDOWN)
@@ -542,17 +700,13 @@ void handleEvents()
             int x, y;
             SDL_GetMouseState(&x, &y);
 
-            if (!isDead)
+            if (isDead)
             {
-                if (!isPaused && x >= pauseRect.x && x <= pauseRect.x + pauseRect.w &&
-                    y >= pauseRect.y && y <= pauseRect.y + pauseRect.h)
+                if (x >= deadBackBtnRect.x && x <= deadBackBtnRect.x + deadBackBtnRect.w &&
+                    y >= deadBackBtnRect.y && y <= deadBackBtnRect.y + deadBackBtnRect.h)
                 {
-                    isPaused = true;
-                }
-                else if (isPaused && x >= playRect.x && x <= playRect.x + playRect.w &&
-                         y >= playRect.y && y <= playRect.y + playRect.h)
-                {
-                    isPaused = false;
+                    Mix_PlayChannel(-1, mouseSound, 0);
+                    currentSection = MENU;
                 }
             }
         }
@@ -572,6 +726,12 @@ void update()
         return;
     }
     lastMoveTime = currentTime;
+    // food cover rotation
+    double deltaTime = (currentTime - lastTime) / 1000.0;
+    foodCoverRotationAngle += foodCoverRotationSpeed * deltaTime;
+    if (foodCoverRotationAngle >= 360.0)
+        foodCoverRotationAngle -= 360.0;
+    lastTime = currentTime;
 
     // Update snake segments positions
     for (int i = snake.size() - 1; i > 0; --i)
@@ -617,18 +777,43 @@ void update()
     SDL_Rect foodRect = {food.x, food.y, snakeSegmentSize, snakeSegmentSize};
     if (checkCollision(headRect, foodRect))
     {
+
         // Add new segment at the position of the last segment
         Segment newSegment = {snake.back().x, snake.back().y, snakeBody, 0.0};
         snake.insert(snake.end() - 1, newSegment);
         score += 10;
-        Mix_PlayChannel(-1, biteSound, 0);
+        Mix_PlayChannel(-1, getPointFx, 0);
+
+        // Show score popup
+        showPopup = true;
+        popupStartTime = currentTime; // Record the start time
+        popUpY = popupInitialY;       // Reset popup Y position
 
         // Place new food
         placeFood();
     }
-    //cheak bonus food
+
+    if (showPopup)
+    {
+        Uint32 elapsedTime = currentTime - popupStartTime;
+
+        if (elapsedTime <= popupDuration)
+
+        {
+            // Adjust the popup movement: assume we want it to move up by 40 pixels over 0.8 seconds
+            float progress = static_cast<float>(elapsedTime) / popupDuration; // Progress from 0.0 to 1.0
+            popUpY = popupInitialY - (progress * 40);                         // Move the popup up by 40 pixels
+        }
+        else
+        {
+            popUpY = -100;
+            showPopup = false; // Hide the popup after the duration
+        }
+    }
+    // cheak bonus food
     if (bonusFoodVisible)
     {
+
         SDL_Rect bonusFoodRect = {bonusFood.x, bonusFood.y, snakeSegmentSize, snakeSegmentSize};
         if (checkCollision(headRect, bonusFoodRect))
         {
@@ -636,22 +821,51 @@ void update()
             Segment newSegment = {snake.back().x, snake.back().y, snakeBody, 0.0};
             snake.insert(snake.end() - 1, newSegment);
             score += 50; // Bonus food gives more points
-            Mix_PlayChannel(-1, biteSound, 0);
+            Mix_PlayChannel(-1, getMoneyFX, 0);
+            // Show score popup
+            showBonusPopup = true;
+            popupStartTime = currentTime; // Record the start time
+            bonusPopUpY = popupInitialY;  // Reset popup Y position
 
             // Hide bonus food
             bonusFoodVisible = false;
         }
     }
 
-    if (!bonusFoodVisible &&(rand() % 100 < 5)) // 5% chance to spawn bonus food each update&& (rand() % 100 < 5)
+    if (showBonusPopup)
+    {
+        Uint32 elapsedTime = currentTime - popupStartTime;
+
+        if (elapsedTime <= popupDuration)
+
+        {
+            // Adjust the popup movement: assume we want it to move up by 40 pixels over 0.8 seconds
+            float progress = static_cast<float>(elapsedTime) / popupDuration; // Progress from 0.0 to 1.0
+            bonusPopUpY = popupInitialY - (progress * 40);                    // Move the popup up by 40 pixels
+        }
+        else
+        {
+           bonusPopUpY = -100;
+           showBonusPopup = false; // Hide the popup after the duration
+        }
+    }
+
+    if (!bonusFoodVisible && (rand() % 100 < 5)) // 5% chance to spawn bonus food each update&& (rand() % 100 < 5)
     {
         placeBonusFood();
+        Mix_PlayChannel(-1, magicFX, 0);
         bonusFoodVisible = true;
         bonusFoodAppearTime = currentTime;
     }
     if (bonusFoodVisible && currentTime - bonusFoodAppearTime > 5000) // Bonus food stays for 5 seconds
     {
         bonusFoodVisible = false;
+    }
+
+    if (score > highScore)
+    {
+        highScore = score;
+        saveHighScore("high-score.txt", highScore);
     }
 
     // Check for self-collision
@@ -661,13 +875,15 @@ void update()
         if (checkCollision(headRect, segmentRect))
         {
             isPaused = true;
+            Mix_PlayChannel(-1, gameOverFx, 0);
             isDead = true;
             // Game over
         }
     }
-    
-    if(snake[0].x < 36|| snake[0].x >= SCREEN_WIDTH - 36 || snake[0].y < 36 || snake[0].y >= SCREEN_HEIGHT - 50)
+
+    if (snake[0].x < 36 || snake[0].x >= SCREEN_WIDTH - 36 || snake[0].y < 36 || snake[0].y >= SCREEN_HEIGHT - 50)
     {
+        Mix_PlayChannel(-1, gameOverFx, 0);
         isPaused = true;
         isDead = true;
     }
@@ -706,6 +922,49 @@ void menuRender()
     // Present the renderer
     SDL_RenderPresent(renderer);
 }
+
+void highScoreRender()
+{
+    // Clear the screen
+    SDL_SetRenderDrawColor(renderer, 210, 126, 26, 255);
+    SDL_RenderClear(renderer);
+
+    // Render background
+    SDL_RenderCopy(renderer, menuBackground, NULL, NULL);
+
+    SDL_RenderCopy(renderer, highScoreStar, NULL, NULL);
+    // render score board
+    ostringstream highScoreNumber;
+    highScoreNumber << highScore;
+    string highScoreValue = highScoreNumber.str();
+    // render
+    SDL_Color textColor = {0, 0, 0};
+    int highScoreValueTextW, highScoreValueTextH;
+
+    highScoreNumberValue = renderText(font, highScoreValue, textColor, highScoreValueTextW, highScoreValueTextH);
+    SDL_Rect scoreValueRect = {SCREEN_WIDTH / 2 - 25, SCREEN_HEIGHT / 2-15, highScoreValueTextW, highScoreValueTextH};
+
+    SDL_RenderCopy(renderer, highScoreNumberValue, NULL, &scoreValueRect);
+    SDL_RenderCopy(renderer, backToMenu, NULL, &backBtnRect);
+
+    // Present the renderer
+    SDL_RenderPresent(renderer);
+}
+
+void helpRender()
+{
+    // Clear the screen
+    SDL_SetRenderDrawColor(renderer, 210, 126, 26, 255);
+    SDL_RenderClear(renderer);
+
+    // Render background
+    SDL_RenderCopy(renderer, menuBackground, NULL, NULL);
+    SDL_RenderCopy(renderer, helpBoardTexture, NULL, NULL);
+    SDL_RenderCopy(renderer, backToMenu, NULL, &helpBackBtnRect);
+
+    // Present the renderer
+    SDL_RenderPresent(renderer);
+}
 void render()
 {
     // Clear the screen
@@ -723,9 +982,14 @@ void render()
     if (bonusFoodVisible)
     {
         SDL_Rect bonusFoodRect = {bonusFood.x, bonusFood.y, snakeSegmentSize, snakeSegmentSize};
-        SDL_Rect bonusFoodRectCover = {bonusFood.x-10, bonusFood.y-10, snakeSegmentSize+20, snakeSegmentSize+20};
+        //  SDL_Rect bonusFoodRectCover = {bonusFood.x - 10, bonusFood.y - 10, snakeSegmentSize + 20, snakeSegmentSize + 20};
         SDL_RenderCopy(renderer, bonusFood.texture, NULL, &bonusFoodRect);
-        SDL_RenderCopy(renderer, bonusFoodCover, NULL, &bonusFoodRectCover);
+        // SDL_RenderCopy(renderer, bonusFoodCover, NULL, &bonusFoodRectCover);
+
+        SDL_Rect bonusFoodRectCover = {bonusFood.x - 10, bonusFood.y - 10, snakeSegmentSize + 20, snakeSegmentSize + 20};
+        SDL_Point center = {bonusFoodRectCover.w / 2, bonusFoodRectCover.h / 2}; // Rotation center
+
+        SDL_RenderCopyEx(renderer, bonusFoodCover, NULL, &bonusFoodRectCover, foodCoverRotationAngle, &center, SDL_FLIP_NONE);
     }
 
     // Render snake
@@ -744,28 +1008,30 @@ void render()
     scoreTexture = renderText(font, "Score:", textColor, scoreTextW, scoreTextH);
     scoreValueTexture = renderText(font, scoreValue, textColor, scoreValueTextW, scoreValueTextH);
 
-    SDL_Rect scoreRect = {20, 20, scoreTextW, scoreTextH};
-    SDL_Rect scoreValueRect = {20 + scoreTextW + 20, 20, scoreValueTextW, scoreValueTextH};
+    SDL_Rect scoreRect = {30, 40, scoreTextW, scoreTextH};
+    SDL_Rect scoreValueRect = {20 + scoreTextW + 20, 40, scoreValueTextW, scoreValueTextH};
     SDL_RenderCopy(renderer, scoreTexture, NULL, &scoreRect);
     SDL_RenderCopy(renderer, scoreValueTexture, NULL, &scoreValueRect);
 
-    // play-pause-icon
-    if (!isDead)
-    {
-        if (isPaused)
-        {
-            SDL_RenderCopy(renderer, playIcon, NULL, &playRect);
-        }
-        else
-        {
-            SDL_RenderCopy(renderer, pauseIcon, NULL, &pauseRect);
-        }
-    }
+    SDL_Color textPopColor = {0, 0, 0};
+    int scorePopW, scorePopH, highScorePopW, highScorePopH;
+    scorePopup = renderText(font, "+10", textPopColor, scorePopW, scorePopH);
+    highScorePopup = renderText(font, "+50", textPopColor, highScorePopW, highScorePopH);
+
+    SDL_Rect scorePopupRect = {popUpX, popUpY, scorePopW, scorePopH};
+    SDL_Rect highScorePopupValueRect = {popUpX + 50, bonusPopUpY + 10, highScorePopW, highScorePopH};
+    SDL_RenderCopy(renderer, scorePopup, NULL, &scorePopupRect);
+    SDL_RenderCopy(renderer, highScorePopup, NULL, &highScorePopupValueRect);
+
+    
 
     // game over screen
     if (isDead)
     {
         SDL_RenderCopy(renderer, gameOver, NULL, NULL);
+        SDL_RenderCopy(renderer, backToMenu, NULL, &deadBackBtnRect);
+
+        SDL_Event event;
     }
 
     // Present the renderer
@@ -792,11 +1058,16 @@ void cleanUp()
     SDL_DestroyTexture(menuOptionExit);
     SDL_DestroyTexture(bonusFoodCover);
     SDL_DestroyTexture(bonusFoodTexture);
+    SDL_DestroyTexture(highScoreStar);
+    SDL_DestroyTexture(highScoreLabel);
+    SDL_DestroyTexture(highScoreNumberValue);
+    SDL_DestroyTexture(helpBoardTexture);
+    SDL_DestroyTexture(backToMenu);
     // clear music
     Mix_FreeChunk(biteSound);
     biteSound = NULL;
     Mix_FreeChunk(mouseSound);
-    mouseSound= NULL;
+    mouseSound = NULL;
     Mix_FreeChunk(clickSound);
     clickSound = NULL;
     Mix_FreeMusic(gameplayMusic);
@@ -806,7 +1077,6 @@ void cleanUp()
     Mix_FreeMusic(themeMusic);
     themeMusic = NULL;
     Mix_FreeMusic(menuMusic);
-   
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -828,61 +1098,76 @@ int main(int argc, char **argv)
     isRunning = true;
     auto currenMusic = themeMusic;
 
-// Start playing the initial music
-Mix_PlayMusic(currenMusic, -1);
+    // Start playing the initial music
+    Mix_PlayMusic(currenMusic, -1);
 
-while (isRunning)
-{
-    switch (currentSection)
+    loadHighScore("high-score.txt", highScore);
+
+    while (isRunning)
     {
-    case THEME:
-        if (currenMusic != themeMusic)
+        switch (currentSection)
         {
-            currenMusic = themeMusic;
-            Mix_PlayMusic(currenMusic, -1);
-        }
-        themeHandleEvents();
-        themeRender();
-        break;
+        case THEME:
+            if (currenMusic != themeMusic)
+            {
+                currenMusic = themeMusic;
+                Mix_PlayMusic(currenMusic, -1);
+            }
+            themeHandleEvents();
+            themeRender();
+            break;
 
-    case MENU:
-        if (currenMusic != menuMusic)
-        {
-            currenMusic = menuMusic;
-            Mix_PlayMusic(currenMusic, -1);
-        }
-        menuHandleEvents();
-        menuRender();
-        break;
+        case MENU:
+            if (currenMusic != menuMusic)
+            {
+                currenMusic = menuMusic;
+                Mix_PlayMusic(currenMusic, -1);
+            }
+            menuHandleEvents();
+            menuRender();
+            break;
+        case HIGHSCORE:
+            //  Mix_PlayMusic(currenMusic, -1);
+            scorePageHandle();
+            highScoreRender();
+            break;
+        case HELP:
+            //  Mix_PlayMusic(currenMusic, -1);
+            helpPageHandle();
+            helpRender();
+            break;
 
-    case GAMESCREEN:
-        
-        handleEvents();
-        if (!isPaused)
-            update();
-        render();
-       if(!isDead){
-         if (currenMusic != gameplayMusic)
-        {
-            currenMusic = gameplayMusic;
-            Mix_PlayMusic(currenMusic, -1);
-        }
-       }else{
-        if (currenMusic != gameOverMusic)
-        {
-            currenMusic = gameOverMusic;
-            Mix_PlayMusic(gameOverMusic, -1);
-        }
-       }
-        break;
+        case GAMESCREEN:
 
-    default:
-        break;
+            handleEvents();
+            if (!isPaused)
+                update();
+            render();
+            if (!isDead)
+            {
+                if (currenMusic != gameplayMusic)
+                {
+                    currenMusic = gameplayMusic;
+                    Mix_PlayMusic(currenMusic, -1);
+                }
+            }
+            else
+            {
+                if (currenMusic != menuMusic)
+                {
+                    currenMusic = menuMusic;
+                    Mix_PlayMusic( currenMusic, -1);
+                }
+            }
+            break;
+
+        default:
+            break;
+        }
+
+        // Cap the frame rate to about 60 FPS
+        SDL_Delay(16);
     }
-    
-    // Cap the frame rate to about 60 FPS
-    SDL_Delay(16);
-}
     cleanUp();
 
     return 0;
