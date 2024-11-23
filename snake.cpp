@@ -8,7 +8,7 @@
 #include <string>
 #include <cstdlib>
 #include <ctime>
-
+//---------------------------------include-------------------------
 using namespace std;
 
 #define SCREEN_WIDTH 800
@@ -16,29 +16,36 @@ using namespace std;
 
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
+
+
+//--------------------------------
 SDL_Texture *backgroundTexture = NULL;
 SDL_Texture *snakeHead = NULL;
 SDL_Texture *snakeBody = NULL;
 SDL_Texture *snakeTail = NULL;
 SDL_Texture *foodTexture = NULL;
-SDL_Texture *pauseIcon = NULL;
-SDL_Texture *playIcon = NULL;
+
+
+
+
 SDL_Texture *gameOver = NULL;
 SDL_Texture *themeBackground = NULL;
 SDL_Texture *menuBackground = NULL;
-SDL_Texture *menuOptionPlay = NULL;
-SDL_Texture *menuOptionHighestScore = NULL;
-SDL_Texture *menuOptionHelp = NULL;
-SDL_Texture *menuOptionExit = NULL;
+
+
+
+
 SDL_Texture *restartIcon = NULL;
 SDL_Texture *bonusFoodTexture = NULL;
 SDL_Texture *bonusFoodCover = NULL;
 SDL_Texture *backToMenu = NULL;
 
 SDL_Texture *backButtonTexture = NULL;
-SDL_Rect backBtnRect = {SCREEN_WIDTH / 2 - 35, SCREEN_HEIGHT / 2 + 150, 60, 45};
-SDL_Rect helpBackBtnRect = {SCREEN_WIDTH / 2 - 35, SCREEN_HEIGHT - 55, 60, 45};
+SDL_Rect backBtnRect = {SCREEN_WIDTH / 2 +80, SCREEN_HEIGHT / 2 + 220, 110, 35};
+SDL_Rect helpBackBtnRect = {SCREEN_WIDTH / 2 +80, SCREEN_HEIGHT / 2 + 227, 110, 35};
 SDL_Rect deadBackBtnRect = {SCREEN_WIDTH / 2 - 25, SCREEN_HEIGHT / 2 + 95, 60, 45};
+
+
 // high score page
 SDL_Texture *highScoreStar = NULL;
 SDL_Texture *highScoreLabel = NULL;
@@ -55,10 +62,10 @@ SDL_Texture *helpBoardTexture = NULL;
 SDL_Rect pauseRect = {SCREEN_WIDTH - 100, 20, 64, 64};
 SDL_Rect playRect = {SCREEN_WIDTH - 100, 20, 64, 64};
 // menu button rect
-SDL_Rect menuPlayRect = {SCREEN_WIDTH / 2 - 70, 150, 140, 60};
-SDL_Rect menuHighScoreRect = {SCREEN_WIDTH / 2 - 70, 218, 140, 60};
-SDL_Rect menuHelpRect = {SCREEN_WIDTH / 2 - 70, 286, 140, 60};
-SDL_Rect menuExitRect = {SCREEN_WIDTH / 2 - 70, 351, 140, 60};
+SDL_Rect menuPlayRect = {SCREEN_WIDTH / 2 +25, 190-1, 247, 46};
+SDL_Rect menuHighScoreRect = {SCREEN_WIDTH / 2+25, 257, 247, 46};
+SDL_Rect menuHelpRect = {SCREEN_WIDTH / 2 +25, 325, 247, 46};
+SDL_Rect menuExitRect = {SCREEN_WIDTH / 2 +25, 395, 247, 46};
 
 TTF_Font *font = NULL;
 
@@ -332,23 +339,8 @@ bool initializeWindow()
         return false;
     }
 
-    // Load pause icon
-    pauseIcon = loadTexture("resource/pause-icon.png", renderer);
-    if (!pauseIcon)
-    {
-        cout << "Error: Failed to load pause texture" << endl;
-        isRunning = false;
-        return false;
-    }
-    // Load play icon
-    playIcon = loadTexture("resource/play-icon.png", renderer);
-    if (!playIcon)
-    {
-        cout << "Error: Failed to load play texture" << endl;
-        isRunning = false;
-        return false;
-    }
-    // Load play icon
+    
+    // gameover png
     gameOver = loadTexture("resource/game-over.png", renderer);
     if (!gameOver)
     {
@@ -365,16 +357,8 @@ bool initializeWindow()
         return false;
     }
 
-    // theme background
 
-    themeBackground = loadTexture("resource/theme.png", renderer);
-    if (!themeBackground)
-    {
-        cout << "Error: Failed to theme background texture" << endl;
-        isRunning = false;
-        return false;
-    }
-
+  
     // theme background
 
     themeBackground = loadTexture("resource/theme.png", renderer);
@@ -393,34 +377,9 @@ bool initializeWindow()
         isRunning = false;
         return false;
     }
-    menuOptionPlay = loadTexture("resource/play.png", renderer);
-    if (!menuOptionPlay)
-    {
-        cout << "Error: Failed to play texture" << endl;
-        isRunning = false;
-        return false;
-    }
-    menuOptionHighestScore = loadTexture("resource/highscore.png", renderer);
-    if (!menuOptionHighestScore)
-    {
-        cout << "Error: Failed to high score texture" << endl;
-        isRunning = false;
-        return false;
-    }
-    menuOptionHelp = loadTexture("resource/help.png", renderer);
-    if (!menuOptionHelp)
-    {
-        cout << "Error: Failed to help texture" << endl;
-        isRunning = false;
-        return false;
-    }
-    menuOptionExit = loadTexture("resource/exit.png", renderer);
-    if (!menuOptionExit)
-    {
-        cout << "Error: Failed to exit texture" << endl;
-        isRunning = false;
-        return false;
-    }
+   
+
+ 
     bonusFoodCover = loadTexture("resource/glower.png", renderer);
     if (!bonusFoodCover)
     {
@@ -530,7 +489,7 @@ void loadHighScore(const char *filename, int &highScore)
         std::cout << "File does not exist. Creating a new high score file." << std::endl;
         highScore = 0;
         saveHighScore(filename, highScore); // Create the file with initial score 0
-    }
+    }   
 }
 
 //---------------------------------------Event Handle----------------------------------------------
@@ -913,12 +872,7 @@ void menuRender()
     // Render background
     SDL_RenderCopy(renderer, menuBackground, NULL, NULL);
 
-    // Menu Button
-    SDL_RenderCopy(renderer, menuOptionPlay, NULL, &menuPlayRect);
-    SDL_RenderCopy(renderer, menuOptionHighestScore, NULL, &menuHighScoreRect);
-    SDL_RenderCopy(renderer, menuOptionHelp, NULL, &menuHelpRect);
-    SDL_RenderCopy(renderer, menuOptionExit, NULL, &menuExitRect);
-
+   
     // Present the renderer
     SDL_RenderPresent(renderer);
 }
@@ -942,10 +896,10 @@ void highScoreRender()
     int highScoreValueTextW, highScoreValueTextH;
 
     highScoreNumberValue = renderText(font, highScoreValue, textColor, highScoreValueTextW, highScoreValueTextH);
-    SDL_Rect scoreValueRect = {SCREEN_WIDTH / 2 - 25, SCREEN_HEIGHT / 2-15, highScoreValueTextW, highScoreValueTextH};
+    SDL_Rect scoreValueRect = {SCREEN_WIDTH / 2 +105, SCREEN_HEIGHT / 2-45, highScoreValueTextW, highScoreValueTextH};
 
     SDL_RenderCopy(renderer, highScoreNumberValue, NULL, &scoreValueRect);
-    SDL_RenderCopy(renderer, backToMenu, NULL, &backBtnRect);
+  
 
     // Present the renderer
     SDL_RenderPresent(renderer);
@@ -960,7 +914,7 @@ void helpRender()
     // Render background
     SDL_RenderCopy(renderer, menuBackground, NULL, NULL);
     SDL_RenderCopy(renderer, helpBoardTexture, NULL, NULL);
-    SDL_RenderCopy(renderer, backToMenu, NULL, &helpBackBtnRect);
+   
 
     // Present the renderer
     SDL_RenderPresent(renderer);
@@ -1004,13 +958,11 @@ void render()
     string scoreValue = scoreNumber.str();
     // render
     SDL_Color textColor = {0, 0, 0};
-    int scoreTextW, scoreTextH, scoreValueTextW, scoreValueTextH;
-    scoreTexture = renderText(font, "Score:", textColor, scoreTextW, scoreTextH);
+    int  scoreValueTextW, scoreValueTextH;
     scoreValueTexture = renderText(font, scoreValue, textColor, scoreValueTextW, scoreValueTextH);
 
-    SDL_Rect scoreRect = {30, 40, scoreTextW, scoreTextH};
-    SDL_Rect scoreValueRect = {20 + scoreTextW + 20, 40, scoreValueTextW, scoreValueTextH};
-    SDL_RenderCopy(renderer, scoreTexture, NULL, &scoreRect);
+
+    SDL_Rect scoreValueRect = {SCREEN_WIDTH/2, 15, scoreValueTextW, scoreValueTextH};
     SDL_RenderCopy(renderer, scoreValueTexture, NULL, &scoreValueRect);
 
     SDL_Color textPopColor = {0, 0, 0};
@@ -1045,17 +997,12 @@ void cleanUp()
     SDL_DestroyTexture(snakeBody);
     SDL_DestroyTexture(snakeTail);
     SDL_DestroyTexture(foodTexture);
-    SDL_DestroyTexture(scoreTexture);
     SDL_DestroyTexture(scoreValueTexture);
-    SDL_DestroyTexture(playIcon);
-    SDL_DestroyTexture(pauseIcon);
+    
     SDL_DestroyTexture(gameOver);
     SDL_DestroyTexture(themeBackground);
     SDL_DestroyTexture(menuBackground);
-    SDL_DestroyTexture(menuOptionPlay);
-    SDL_DestroyTexture(menuOptionHighestScore);
-    SDL_DestroyTexture(menuOptionHelp);
-    SDL_DestroyTexture(menuOptionExit);
+    
     SDL_DestroyTexture(bonusFoodCover);
     SDL_DestroyTexture(bonusFoodTexture);
     SDL_DestroyTexture(highScoreStar);
