@@ -13,7 +13,7 @@ using namespace std;
 
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
-
+int snakeSegmentSize = 24;
 SDL_Window *window = NULL;
 SDL_Renderer *renderer = NULL;
 
@@ -46,6 +46,12 @@ SDL_Rect obs2 = {294, 442, 115, 25};
 SDL_Rect obs3 = {346, 218, 24, 87};
 SDL_Rect obs4 = {490, 328, 24, 95};
 
+int obs5y=0;
+int obs6y=0;
+int obs7x=0;
+SDL_Rect obs5 = {SCREEN_WIDTH/4,obs5y, snakeSegmentSize, snakeSegmentSize};
+SDL_Rect obs6 = {SCREEN_WIDTH/4+SCREEN_WIDTH/2,obs6y, snakeSegmentSize, snakeSegmentSize};
+SDL_Rect obs7 = {obs7x,SCREEN_HEIGHT/2, snakeSegmentSize, snakeSegmentSize};
 // high score page
 SDL_Texture *highScoreStar = NULL;
 SDL_Texture *highScoreLabel = NULL;
@@ -96,7 +102,7 @@ bool isPaused = false;
 bool isDead = false;
 
 int score = 0;
-int snakeSegmentSize = 24;
+
 Uint32 snakeSpeed = 200;
 Uint32 lastMoveTime = 0;
 // rotating enchinted food cover
@@ -711,6 +717,28 @@ void update()
     if (foodCoverRotationAngle >= 360.0)
         foodCoverRotationAngle -= 360.0;
     lastTime = currentTime;
+if(level==2){
+static int obs5Speed = 10; 
+obs5y += obs5Speed;
+
+if (obs5y <= 0 || obs5y >= SCREEN_HEIGHT - snakeSegmentSize) {
+    obs5Speed = -obs5Speed; 
+}
+
+static int obs6Speed = 15; 
+obs6y += obs6Speed;
+
+if (obs6y <= 0 || obs6y >= SCREEN_HEIGHT - snakeSegmentSize) {
+    obs6Speed = -obs6Speed; 
+}
+
+static int obs7Speed = 10; 
+obs7x += obs7Speed;
+
+if (obs7x <= 0 || obs7x>= SCREEN_HEIGHT - snakeSegmentSize) {
+    obs7Speed= -obs7Speed; 
+}
+}
 
     // Update snake segments positions
     for (int i = snake.size() - 1; i > 0; --i)
@@ -860,22 +888,31 @@ void update()
         }
     }
 
-    /*
-    if ((snake[0].x < 36 || snake[0].x >= SCREEN_WIDTH - 36 || snake[0].y < 36 || snake[0].y >= SCREEN_HEIGHT - 50) )
-        {
-            Mix_PlayChannel(-1, gameOverFx, 0);
-            isPaused = true;
-            isDead = true;
-        }
+
+    if ((snake[0].x < 36 || snake[0].x >= SCREEN_WIDTH - 36) )
+    {
+        Mix_PlayChannel(-1, gameOverFx, 0);
+        isPaused = true;
+        isDead = true;
+    }
 
 
 
 
-    */
+    
 
     if ((level == 1) && (checkCollision(headRect, obs1) || checkCollision(headRect, obs2) || checkCollision(headRect, obs1) || checkCollision(headRect, obs3) || checkCollision(headRect, obs4)))
     {
-        cout << "dead" << endl;
+        Mix_PlayChannel(-1, gameOverFx, 0);
+        isPaused = true;
+        isDead = true;
+    }
+
+    if ((level == 2) && (checkCollision(headRect, obs5) || checkCollision(headRect, obs6) || checkCollision(headRect, obs7) ))
+    {
+        Mix_PlayChannel(-1, gameOverFx, 0);
+        isPaused = true;
+        isDead = true;
     }
 
     if (level == 0 && score > 100)
@@ -883,6 +920,12 @@ void update()
         backgroundTexture = backgroundTexture2;
         level = 1;
         cout << "level 1 is loading" << endl;
+    }
+    if (level == 1 && score > 200)
+    {
+        backgroundTexture = backgroundTexture1;
+        level = 2;
+        cout << "level 2 is loading" << endl;
     }
 }
 
@@ -964,7 +1007,10 @@ void render()
     SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
 
     // obs
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+    obs5 ={SCREEN_WIDTH/4,obs5y,snakeSegmentSize,snakeSegmentSize};
+    obs6 ={SCREEN_WIDTH/4+SCREEN_WIDTH/2,obs6y,snakeSegmentSize,snakeSegmentSize};
+    obs7 = {obs7x,SCREEN_HEIGHT/2, snakeSegmentSize, snakeSegmentSize};
+    SDL_SetRenderDrawColor(renderer, 0,0, 0, 255);
     if (level == 1)
     {
         SDL_RenderFillRect(renderer, &obs1);
@@ -972,7 +1018,12 @@ void render()
         SDL_RenderFillRect(renderer, &obs3);
         SDL_RenderFillRect(renderer, &obs4);
     }
-
+    if(level==2){
+    SDL_RenderFillRect(renderer, &obs5);
+    SDL_RenderFillRect(renderer, &obs6);
+    SDL_RenderFillRect(renderer, &obs7);
+    }
+    
     // Render food
     SDL_Rect foodRect = {food.x, food.y, snakeSegmentSize, snakeSegmentSize};
     SDL_RenderCopy(renderer, food.texture, NULL, &foodRect);
