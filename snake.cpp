@@ -8,7 +8,11 @@
 #include <string>
 #include <cstdlib>
 #include <ctime>
-//---------------------------------end include-------------------------
+/***
+ * 
+ *                                             DEFINE
+ * 
+ ***/
 using namespace std;
 
 #define SCREEN_WIDTH 800
@@ -81,7 +85,7 @@ SDL_Rect menuExitRect = {SCREEN_WIDTH / 2 + 25, 395, 247, 46};
 
 TTF_Font *font = NULL;
 
-SDL_Texture *scoreTexture = NULL; // maybe lagbe na
+SDL_Texture *scoreTexture = NULL; 
 SDL_Texture *scoreValueTexture = NULL;
 
 // bgm and sound effect
@@ -179,7 +183,7 @@ SDL_Texture *loadTexture(const std::string &path, SDL_Renderer *renderer)
     return newTexture;
 }
 
-// Function to render text and return it as an SDL_Texture
+// Function to render text  as  SDL_Texture
 SDL_Texture *renderText(TTF_Font *font, const string &message, SDL_Color color, int &width, int &height)
 {
     SDL_Surface *textSurface = TTF_RenderText_Solid(font, message.c_str(), color);
@@ -233,10 +237,11 @@ void placeBonusFood()
     do
     {
         validPosition = true;
+        //Random grid position
         bonusFood.x = (rand() % (SCREEN_WIDTH / snakeSegmentSize)) * snakeSegmentSize;
         bonusFood.y = (rand() % (SCREEN_HEIGHT / snakeSegmentSize)) * snakeSegmentSize;
 
-        // Ensure the bonus food does not spawn on the snake or within 100px of the boundary
+        //Boundary Cheak
         if (bonusFood.x < 50 || bonusFood.x >= SCREEN_WIDTH - 50 || bonusFood.y < 50 || bonusFood.y >= SCREEN_HEIGHT - 50)
         {
             validPosition = false;
@@ -251,10 +256,15 @@ void placeBonusFood()
                     break;
                 }
             }
+
         }
     } while (!validPosition);
 }
-
+/***
+ * 
+ *                                              INITALIZATION SECTION
+ * 
+ ***/
 bool initializeWindow()
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
@@ -370,7 +380,6 @@ bool initializeWindow()
     }
 
     // theme background
-
     themeBackground = loadTexture("resource/theme.png", renderer);
     if (!themeBackground)
     {
@@ -500,8 +509,12 @@ void loadHighScore(const char *filename, int &highScore)
     }
 }
 
-//---------------------------------------Event Handle----------------------------------------------
-
+/***
+ * 
+ *                                              EVENT SECTION
+ * 
+ ***/
+//-----------------------------------------THEME-----------------------------------------
 void themeHandleEvents()
 {
     SDL_Event event;
@@ -522,6 +535,7 @@ void themeHandleEvents()
         }
     }
 }
+//------------------------------SCORE EVENT---------------------------------------------
 void scorePageHandle()
 {
     SDL_Event event;
@@ -546,6 +560,7 @@ void scorePageHandle()
         }
     }
 }
+//--------------------------------------HELP EVENT-------------------------------------------------
 void helpPageHandle()
 {
     SDL_Event event;
@@ -621,7 +636,11 @@ void menuHandleEvents()
     }
 }
 
-//reset
+/***
+ * 
+ *                                              RESET THE GAME 
+ * 
+ ***/
 void reset(){
     score=0; 
     snake.clear();
@@ -702,6 +721,11 @@ bool checkCollision(const SDL_Rect &a, const SDL_Rect &b)
 {
     return SDL_HasIntersection(&a, &b);
 }
+/***
+ * 
+ *                                              UPDATE SECTION
+ * 
+ ***/
 
 void update()
 {
@@ -846,14 +870,14 @@ if (obs7x <= 0 || obs7x>= SCREEN_HEIGHT - snakeSegmentSize) {
         if (elapsedTime <= popupDuration)
 
         {
-            // Adjust the popup movement: assume we want it to move up by 40 pixels over 0.8 seconds
+            
             float progress = static_cast<float>(elapsedTime) / popupDuration; // Progress from 0.0 to 1.0
-            bonusPopUpY = popupInitialY - (progress * 40);                    // Move the popup up by 40 pixels
+            bonusPopUpY = popupInitialY - (progress * 40);                  
         }
         else
         {
             bonusPopUpY = -100;
-            showBonusPopup = false; // Hide the popup after the duration
+            showBonusPopup = false;
         }
     }
 
@@ -929,8 +953,11 @@ if (obs7x <= 0 || obs7x>= SCREEN_HEIGHT - snakeSegmentSize) {
     }
 }
 
-//-----------------------------------------------Render Part------------------------------------------
-
+/***
+ * 
+ *                                              Render Section
+ * 
+ ***/
 // --------------------------------------Theme Render -------------------------------------------------
 void themeRender()
 {
@@ -944,6 +971,7 @@ void themeRender()
     // Present the renderer
     SDL_RenderPresent(renderer);
 }
+// --------------------------------------Menu Render --------------------------------------------------
 void menuRender()
 {
     // Clear the screen
@@ -956,7 +984,7 @@ void menuRender()
     // Present the renderer
     SDL_RenderPresent(renderer);
 }
-
+// --------------------------------------High Score Render --------------------------------------------------
 void highScoreRender()
 {
     // Clear the screen
@@ -983,7 +1011,7 @@ void highScoreRender()
     // Present the renderer
     SDL_RenderPresent(renderer);
 }
-
+// --------------------------------------Help Render --------------------------------------------------
 void helpRender()
 {
     // Clear the screen
@@ -997,6 +1025,7 @@ void helpRender()
     // Present the renderer
     SDL_RenderPresent(renderer);
 }
+// --------------------------------------Main Render --------------------------------------------------
 void render()
 {
     // Clear the screen
@@ -1011,13 +1040,7 @@ void render()
     obs6 ={SCREEN_WIDTH/4+SCREEN_WIDTH/2,obs6y,snakeSegmentSize,snakeSegmentSize};
     obs7 = {obs7x,SCREEN_HEIGHT/2, snakeSegmentSize, snakeSegmentSize};
     SDL_SetRenderDrawColor(renderer, 0,0, 0, 255);
-    if (level == 1)
-    {
-        SDL_RenderFillRect(renderer, &obs1);
-        SDL_RenderFillRect(renderer, &obs2);
-        SDL_RenderFillRect(renderer, &obs3);
-        SDL_RenderFillRect(renderer, &obs4);
-    }
+  
     if(level==2){
     SDL_RenderFillRect(renderer, &obs5);
     SDL_RenderFillRect(renderer, &obs6);
@@ -1032,12 +1055,9 @@ void render()
     if (bonusFoodVisible)
     {
         SDL_Rect bonusFoodRect = {bonusFood.x, bonusFood.y, snakeSegmentSize, snakeSegmentSize};
-        //  SDL_Rect bonusFoodRectCover = {bonusFood.x - 10, bonusFood.y - 10, snakeSegmentSize + 20, snakeSegmentSize + 20};
         SDL_RenderCopy(renderer, bonusFood.texture, NULL, &bonusFoodRect);
-        // SDL_RenderCopy(renderer, bonusFoodCover, NULL, &bonusFoodRectCover);
-
         SDL_Rect bonusFoodRectCover = {bonusFood.x - 10, bonusFood.y - 10, snakeSegmentSize + 20, snakeSegmentSize + 20};
-        SDL_Point center = {bonusFoodRectCover.w / 2, bonusFoodRectCover.h / 2}; // Rotation center
+        SDL_Point center = {bonusFoodRectCover.w / 2, bonusFoodRectCover.h / 2}; 
 
         SDL_RenderCopyEx(renderer, bonusFoodCover, NULL, &bonusFoodRectCover, foodCoverRotationAngle, &center, SDL_FLIP_NONE);
     }
@@ -1128,7 +1148,7 @@ void cleanUp()
 
 int main(int argc, char **argv)
 {
-    srand(static_cast<unsigned int>(time(0))); // Seed the random number generator
+    srand(static_cast<unsigned int>(time(0))); 
 
     if (!initializeWindow())
     {
@@ -1204,8 +1224,7 @@ int main(int argc, char **argv)
             break;
         }
 
-        // Cap the frame rate to about 60 FPS
-        SDL_Delay(16);
+        SDL_Delay(16);//60 fps
     }
     cleanUp();
 
